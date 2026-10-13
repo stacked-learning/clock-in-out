@@ -4,6 +4,8 @@ Prepared 13 October 2026. This is a proposed implementation design derived from 
 
 ## Intended experience
 
+Monday.com is also a confirmed integration requirement. See [MONDAY-INTEGRATION.md](MONDAY-INTEGRATION.md) for proposed board/item mapping, source links, permission boundaries, sync modes and the limitation on updating Monday's native Time Tracking column. Exact sync direction remains to be confirmed.
+
 A staff member signs in, sees whether they are clocked out, working or on break, and completes the next action in one click. They can associate work with a project, review their day/week, request corrections and submit a period. A manager sees outstanding corrections, missing submissions, pending approvals and attendance exceptions. An administrator maintains staff, projects, policies and export settings.
 
 Project timers and attendance must have an explicit relationship. Choose whether project timers generate attendance or sit within a separate shift. For a mixed tool, recommend a shift containing work/break intervals and project allocations, with checks that allocations do not double-count attendance. Manual weekly project hours may lack precise attendance timestamps; label them accordingly.
@@ -16,13 +18,13 @@ Project timers and attendance must have an explicit relationship. Choose whether
 | My time | Daily records, weekly totals, project allocations, correction requests and submission status |
 | Review | Pending timesheets/corrections; submitted values; approve/reject with explanation |
 | Attendance | Team work, breaks and exceptions; elapsed-to-date default; filter by person/date/status |
-| Projects | Clients, projects, tasks, active/archive status and membership |
+| Projects | Clients, projects, tasks, active/archive status and membership; linked Monday board/item mapping and Open in Monday source links |
 | Team | Staff, scoped manager relationships, roles and capacity |
 | Settings | Australia/Sydney timezone, AUD option, Monday week start, display format and tracking/approval rules |
 | Export | Preview approved hours, chosen period, timezone and columns; download CSV |
 | Note import | Paste/upload daily Markdown or ingest through a common API; review parsed times, proposed projects, ambiguity and duplicates before committing |
 | Billing / Xero | Map clients, review approved unbilled hours and rates, create a draft Xero invoice and reconcile its status |
-| Device quick timer | Favourite/recent projects and one-action start/stop/switch on computers, Android and iOS PWA; visible offline queue and sync status |
+| Device quick timer | Favourite/recent projects and Start/Pause/Resume/Stop/Switch on Windows system tray, macOS menu bar, Android and iOS PWA; visible offline queue and sync status |
 
 Use Clockify's familiar navigation, terminology, layout patterns and core interaction sequences to reduce staff training. Preserve a clear personal/team scope indicator, visible saved/pending/error states and meaningful empty states. Prefer named controls over unlabeled icon-only actions. On mobile, prioritise daily clock actions over wide management tables. Use our own product name, logo and assets. See UI-FAMILIARITY.md for the required screen mapping and usability checks.
 
@@ -45,6 +47,8 @@ Every workspace-owned entity needs a workspace ID and server-side authorisation.
 | Export batch | Period, calculation version, record revisions and generated timestamp |
 
 Required additional entities: source document/version, import batch/candidate, project alias/matching rule, device operation/outbox, Xero organisation/contact mapping, billing batch/line allocation and external invoice link. Later entities: expense/receipt, assignment/milestone, kiosk/device session and expanded payment handling. Detailed integration fields and lifecycle are specified in INTEGRATIONS-AND-CAPTURE.md.
+
+Project recording also requires a timer session with Running/Paused/Stopped state and linked active intervals. Pause closes an interval; Resume opens another. Recorded duration is the sum of active intervals, excluding pauses. Attendance breaks remain a separate concept.
 
 Store time instants in UTC and retain the relevant IANA timezone; derive local period boundaries explicitly. Store durations as integer seconds and currency in decimal-safe units. Keep local wall-clock input alongside resolved instants where needed to explain corrections. Avoid a schema that only stores `09:00` and `17:00` without dates/timezone.
 
@@ -102,9 +106,9 @@ These are implementation tests for your future app, not tests already run agains
 
 ## Architecture and delivery
 
-A shared server API, relational data store and background job worker should support the web app, computer clients, Android app and iOS PWA. Each client uses the same time-entry and approval rules. Computer operating-system coverage and the actual framework, authentication provider and hosting remain to be confirmed.
+A shared server API, relational data store and background job worker should support the web app, Windows system-tray client, macOS menu-bar client, Android app and iOS PWA. Each client uses the same time-entry, pause/resume and approval rules. The actual framework, supported OS versions, authentication provider and hosting remain to be confirmed.
 
-Use database transactions/constraints for running-state consistency, idempotency keys for clock actions, revision checks for edits and a shared calculation library/service for report/export totals. Background jobs handle imports and Xero sync/reconciliation. Offline capture and queue reconciliation are part of the required device experience; platform behaviour must be validated on actual target devices.
+Use database transactions/constraints for running-state consistency, idempotency keys for clock actions, revision checks for edits and a shared calculation library/service for report/export totals. Background jobs handle imports, Monday work-structure sync and Xero sync/reconciliation. Offline capture and queue reconciliation are part of the required device experience; platform behaviour must be validated on actual target devices.
 
 Suggested implementation order:
 
@@ -112,7 +116,7 @@ Suggested implementation order:
 2. Implement membership, projects and authoritative clock/break state with history and audit events.
 3. Add daily-note import with review, project matching, manual records/corrections, period submission, manager review and approved CSV export.
 4. Deliver computer quick-timer clients, Android app and iOS PWA using the shared API and offline operation queue.
-5. Add Xero contact mapping, reviewed billing batches, draft invoice creation and status reconciliation.
+5. Add Monday connection, board/item mapping and linked tasks, then Xero contact mapping, reviewed billing batches, draft invoice creation and status reconciliation. Enable Monday write-back only for the confirmed sync mode and supported target fields.
 6. Verify concurrency, authorisation, imports, device offline recovery, midnight/DST and billing/export totals with realistic test data.
 7. Add leave, kiosk, budgets, expenses and planning according to confirmed priorities. Xero and the device clients are confirmed deliverables, not optional parity extras.
 
@@ -120,12 +124,13 @@ Suggested implementation order:
 
 - Whether project allocations must sit within clocked attendance, and how retrospective project hours outside a shift are handled. Both attendance and project time are confirmed requirements; Xero invoicing is now confirmed scope.
 - Number of staff and manager/team boundaries; one workspace or multiple organisations.
-- Which computer operating systems must be supported, and whether a shared kiosk is also required. Android app and iOS PWA are confirmed.
+- Supported versions of Windows/macOS and whether a shared kiosk is also required. Windows tray, macOS menu bar, Android app and iOS PWA are confirmed.
 - Existing sign-in provider and deployment environment.
 - Paid/unpaid break rules, manual corrections, approval frequency and period locking.
 - Xero organisation(s), contact/project mappings, billing rates, account/tax codes and invoice grouping; any additional payroll destination and export schema.
 - Whether current Clockify data needs migration, and which history must be preserved.
 - Import destination is confirmed as the custom app; decide which additional personal logging formats/API clients must be supported beyond Markdown notes.
 - Approved project/task taxonomy and aliases, and whether optional LLM processing should run locally or through an authorised hosted service.
+- Monday account/boards, work-structure mappings and inbound/outbound/bidirectional sync requirements; see MONDAY-INTEGRATION.md.
 
 No delivery duration or cost is promised before these choices and the implementation scope are settled. The immediate next deliverable can be a working first release built around the validated daily clock and approval loop.

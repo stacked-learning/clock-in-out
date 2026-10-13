@@ -4,6 +4,8 @@ Confirmed requirements, 13 October 2026: staff attendance plus project time, Xer
 
 ## One time ledger, several capture methods
 
+Monday.com is an additional confirmed integration. Its boards/items can supply linked work structure for project/task selection and note matching. Our app retains the canonical time ledger; Xero remains the invoice destination. See MONDAY-INTEGRATION.md for mapping and sync choices. Updating Monday's native Time Tracking values is not supported by its documented API; optional hours summaries use a separately configured supported destination.
+
 Computer clients, Android, the iOS PWA, Markdown notes and future personal logging tools should all submit to the same intake and time ledger. Capture method is provenance, not a separate set of hours. Time enters as a timer record or a reviewed import, then follows corrections, submission, approval and billing.
 
 Recommended pipeline:
@@ -38,7 +40,8 @@ Do not require Xero Projects for this workflow: internal projects can be represe
 
 | Surface | Required quick-capture experience |
 |---|---|
-| Computer client | Favourite/recent projects; start/stop/switch; running status; small persistent window or tray access where supported; optional keyboard shortcut; offline queue |
+| Windows client | System-tray icon and quick timer menu: favourite/recent projects, searchable project/task picker, Start, Pause, Resume, Stop and Switch project; current project, elapsed time and sync status; offline queue |
+| macOS client | Menu-bar icon with the same quick timer actions, project picker, current project, elapsed time and sync status; offline queue |
 | Android app | Project picker, recent/favourites, one-action timer and break control, running-state recovery and offline queue; optional widget/notification shortcut |
 | iOS PWA | Home-screen install guidance, responsive quick timer, cached project list, durable local pending operations, foreground sync and manual retry |
 | Web management app | Review notes, timesheets, corrections, team attendance and billing; available from clients through a management link |
@@ -49,7 +52,27 @@ Never depend on a continuously running JavaScript loop to record time. Persist a
 
 For iOS PWA, use sync-on-open/resume, connectivity recovery while open and an explicit retry control as the guaranteed path. Background Sync is not universally supported, so it must be an enhancement rather than a prerequisite. Verify behaviour on supported iOS versions and installed-PWA mode. Pending offline data needs a recoverable export path; do not imply browser storage guarantees permanent retention. [MDN Background Synchronization API](https://developer.mozilla.org/en-US/docs/Web/API/Background_Synchronization_API).
 
-Computer OS coverage remains to be confirmed; Windows is available in the current environment. Packaging, app signing and distribution are separate from the web app. Pick the actual client framework after deciding supported OSs and native shortcuts.
+Windows and macOS are confirmed desktop targets. Windows uses a system-tray entry point; macOS uses a menu-bar entry point. Packaging, app signing and distribution are separate from the web app. Pick the actual client framework and supported OS versions during implementation.
+
+### Desktop live timer and pause/resume
+
+Selecting a project from the tray/menu-bar picker starts recording immediately. Favourite and recent projects should be available without opening the main app. Optional task and description details can be filled in through the compact timer panel. The timer visibly distinguishes **Running**, **Paused** and **Stopped**, including the current project and accumulated recorded duration.
+
+Project timer states: `Stopped → Running → Paused → Running → Stopped`. Stop is also available directly from Running or Paused. Starting another project closes the previous session and starts the selected project atomically; prompt only if a conflict or policy requires resolution.
+
+- **Start:** create a timer session and its first active interval.
+- **Pause:** close the active interval immediately; keep the session/project available for resuming. Paused time does not accumulate project hours or billing quantity.
+- **Resume:** create another active interval in the same session. Preserve the gap as paused time; do not fill it retrospectively.
+- **Stop:** close any active interval and finalise the session with the sum of its active intervals. Stopping a paused session adds no time.
+- **Switch project:** finalise the current project session and start the chosen project, with the attendance shift unchanged.
+
+Example: start at 09:00, pause at 09:20, resume at 09:35 and stop at 10:00 records **45 minutes** over two active intervals. The 15-minute pause is excluded. Persist these intervals, not just a single start/end pair, so reports and billing can reproduce the total.
+
+Pausing project recording does not automatically start an attendance break or clock someone out. Those remain separate labelled actions. Mirror Pause/Resume in the web and mobile timer controls and synchronise the state across clients.
+
+Recording continues until the user pauses or stops, including while the timer panel is closed. Hiding the panel or closing the management window leaves the tray/menu-bar client available. Do not silently stop on app exit, restart, sleep, idle or loss of connectivity; persist the running start/state and recover it. Flag long-running or sleep-spanning sessions for review when appropriate, with any automatic stopping policy an explicit future setting rather than the default. A paused session remains paused on restart.
+
+Online state is authoritative on the server; unsynchronised local operations remain visibly pending. Concurrent actions across devices must resolve without overlapping active timers or lost pause intervals. Closing the UI does not require a continuously ticking background counter to preserve duration.
 
 ## Daily-note import: offline first, optional language model
 
@@ -105,6 +128,12 @@ No Xero amount can be calculated until client mapping, approved billable allocat
 | Alias maps to multiple projects | Requires explicit choice; no silent match |
 | LLM returns unknown project or altered duration | Reject output; preserve parser result and request review |
 | Close/reopen device UI while timing | Correct elapsed time from persisted start; no required background loop |
+| Start project from Windows tray/macOS menu bar | Timer starts without opening the main app; project and running status are visible |
+| Start 09:00, pause 09:20, resume 09:35, stop 10:00 | Exactly 45 minutes recorded; 15-minute pause excluded |
+| Stop an already paused timer | Finalises existing active intervals and adds zero paused time |
+| Pause project recording during an attendance shift | Attendance remains working unless a separate break/clock-out action is taken |
+| Restart while running or paused | Restores the persisted state; paused gaps are never counted as project work |
+| Hide the timer panel | Recording continues; tray/menu-bar controls remain accessible |
 | Two devices act offline | Durable operations reconcile; conflicting intervals remain visible |
 | iOS has no background sync | Pending changes sync on foreground use and can be retried |
 | Invoice request times out after creation | Reconcile/retry same batch; exactly one linked invoice |
@@ -116,4 +145,4 @@ No Xero amount can be calculated until client mapping, approved billable allocat
 
 Deliver the ledger and approvals first, then reviewed note import and quick device capture, then Xero draft invoicing using those approved records. These are required parts of the initial product programme. Advanced AI, native monitoring, a full local invoicing engine, additional accounting systems and Xero Projects are separate optional expansions.
 
-Outstanding choices: actual project aliases/catalogue, computer OS coverage, Xero organisation/contact/rate mappings, invoice grouping and optional local/hosted LLM preference. These do not prevent defining the common ledger and deterministic importer.
+Outstanding choices: actual project aliases/catalogue, supported Windows/macOS versions, Xero organisation/contact/rate mappings, invoice grouping and optional local/hosted LLM preference. These do not prevent defining the common ledger and deterministic importer.

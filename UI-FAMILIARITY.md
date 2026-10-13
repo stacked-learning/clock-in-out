@@ -42,7 +42,9 @@ Attendance is an explicit additional concept: show **Clocked out / Working / On 
 | Daily-note import | An Import notes action on Time Tracker/Timesheet opens a review screen using familiar time-entry rows and project selectors |
 | Intelligent project matching | Suggestions appear beside the project/task controls with a short reason; ambiguous matches require a choice |
 | Xero billing | Invoices contains a reviewed Create Xero draft flow; show the linked Xero invoice and status |
+| Monday.com | Connect and map boards in Workspace settings → Integrations; linked work appears in familiar project/task pickers with an Open in Monday action |
 | Desktop/Android/iOS quick capture | Use the same project labels, favourites and timer semantics as the main app |
+| Windows tray / macOS menu bar | Compact project picker, current project and accumulated duration, with explicit Start/Pause/Resume/Stop; paused time excluded from project hours |
 | Offline operation | Add a visible Pending sync indicator and recovery action without changing the meaning of Start/Stop |
 
 ## Implementation and validation
